@@ -8,12 +8,16 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   try {
     const supabase = getAdminSupabase();
-    const { data: board, error: boardError } = await supabase.from("boards").select("*").eq("is_active", true).maybeSingle();
+    const { data: board, error: boardError } = await supabase
+      .from("boards")
+      .select("*, words(*)")
+      .eq("is_active", true)
+      .order("count", { referencedTable: "words", ascending: false })
+      .maybeSingle();
     if (boardError) throw boardError;
     if (!board) return NextResponse.json({ board: null, words: [] });
-    const { data: words, error: wordsError } = await supabase.from("words").select("*").eq("board_id", board.id).order("count", { ascending: false });
-    if (wordsError) throw wordsError;
-    return NextResponse.json({ board: board as Board, words: (words ?? []) as Word[] });
+    const { words = [], ...boardData } = board as Board & { words: Word[] };
+    return NextResponse.json({ board: boardData, words });
   } catch (error) {
     return failure(error, "ยังเชื่อมต่อบอร์ดไม่ได้ กรุณาตรวจการตั้งค่าระบบ");
   }
