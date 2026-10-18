@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import dynamic from "next/dynamic";
+import { QRCodeSVG } from "qrcode.react";
 import { getPublicSupabase } from "@/lib/supabase";
 import type { BoardPayload } from "@/lib/types";
 
@@ -17,6 +18,7 @@ export default function CloudPage() {
   const [notice, setNotice] = useState("");
   const [sending, setSending] = useState(false);
   const [time, setTime] = useState("");
+  const [cloudUrl, setCloudUrl] = useState("");
   const answerLength = [...graphemes.segment(answer)].length;
 
   const refresh = useCallback(async () => {
@@ -37,6 +39,10 @@ export default function CloudPage() {
       return;
     }
   }, [refresh]);
+
+  useEffect(() => {
+    setCloudUrl(`${window.location.origin}/`);
+  }, []);
 
   useEffect(() => {
     const update = () => setTime(new Intl.DateTimeFormat("th-TH", { timeZone: "Asia/Bangkok", hour: "2-digit", minute: "2-digit", hourCycle: "h23", numberingSystem: "latn" }).format(new Date()));
@@ -70,24 +76,16 @@ export default function CloudPage() {
 
   return (
     <main className="cloud-shell">
-      <header className="cloud-topline">
-        <a className="brand" href="/" aria-label="ห้องอ่านหนังสือ">
-          <span className="brand-mark">ร</span>
-          <span><strong>ห้องอ่านหนังสือ</strong><small>READING ROOM · WORD CLOUD</small></span>
-        </a>
-        <span className="live-pill"><i /> LIVE BOARD</span>
-      </header>
-
+      <aside className="cloud-qr" aria-label="QR สำหรับเปิดหน้า Word Cloud">
+        {cloudUrl && <QRCodeSVG value={cloudUrl} size={132} level="M" marginSize={3} title="สแกนเพื่อเปิดหน้า Word Cloud" />}
+      </aside>
       <section className="cloud-heading">
-        <div className="eyebrow">วันนี้อยากแบ่งปันอะไร</div>
         <h1>{data.board?.question ?? "กำลังเตรียมคำถาม…"}</h1>
-        <p>ส่งคำหรือวลีสั้น ๆ ที่อยากฝากไว้ แล้วมาดูความคิดของทุกคนรวมกัน</p>
       </section>
 
       <section className="cloud-stage" aria-label="Word cloud">
-        <div className="stage-label"><span>คลังความคิดของเรา</span><span>{data.words.reduce((sum, word) => sum + word.count, 0)} คำตอบ</span></div>
+        <div className="stage-label"><span>{data.words.reduce((sum, word) => sum + word.count, 0)} คำตอบ</span></div>
         <WordCloud words={data.words} />
-        <div className="stage-decoration decoration-a">✳</div><div className="stage-decoration decoration-b">✳</div>
       </section>
 
       <form className="answer-form" onSubmit={submit}>
@@ -107,10 +105,6 @@ export default function CloudPage() {
         <div className="form-foot"><span>ไม่ต้องระบุชื่อ · {answerLength}/80 ตัวอักษร</span><span className="notice" aria-live="polite">{answerLength > 80 ? "คำตอบยาวเกิน 80 ตัวอักษร" : notice}</span></div>
       </form>
 
-      <footer className="cloud-footer">
-        <span>ทุกคำมีความหมาย <b>·</b> ทุกคนมีพื้นที่</span>
-        <span className="footer-meta">WORD CLOUD <i /> READING ROOM</span>
-      </footer>
       <aside className="duty-clock" aria-label="เวรดูแลและเวลา">
         <span className="duty-icon">✦</span><span><small>เวรดูแลวันนี้</small><strong>{data.board?.duty_name || "ยังไม่ระบุ"}</strong></span>
         <i className="clock-divider" /><time>{time || "--:--"}</time>

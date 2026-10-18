@@ -46,7 +46,7 @@ export default function WordCloud({ words }: { words: Word[] }) {
       })))
       .padding(8)
       .rotate(0)
-      .font('"Noto Sans Thai", Tahoma, sans-serif')
+      .font('"Mali", sans-serif')
       .fontSize((word) => word.size)
       .on("end", (placed) => setPositioned(placed));
     layout.start();
