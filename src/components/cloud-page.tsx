@@ -1,0 +1,120 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import type { FormEvent } from "react";
+import dynamic from "next/dynamic";
+import { getPublicSupabase } from "@/lib/supabase";
+import type { BoardPayload } from "@/lib/types";
+
+const WordCloud = dynamic(() => import("./word-cloud"), { ssr: false });
+
+const empty: BoardPayload = { board: null, words: [] };
+const graphemes = new Intl.Segmenter("th", { granularity: "grapheme" });
+
+export default function CloudPage() {
+  const [data, setData] = useState(empty);
+  const [answer, setAnswer] = useState("");
+  const [notice, setNotice] = useState("");
+  const [sending, setSending] = useState(false);
+  const [time, setTime] = useState("");
+  const answerLength = [...graphemes.segment(answer)].length;
+
+  const refresh = useCallback(async () => {
+    const response = await fetch("/api/board", { cache: "no-store" });
+    if (response.ok) setData(await response.json());
+  }, []);
+
+  useEffect(() => {
+    void refresh();
+    try {
+      const supabase = getPublicSupabase();
+      const channel = supabase.channel("live-word-cloud")
+        .on("postgres_changes", { event: "*", schema: "public", table: "boards" }, () => void refresh())
+        .on("postgres_changes", { event: "*", schema: "public", table: "words" }, () => void refresh())
+        .subscribe((status) => { if (status === "SUBSCRIBED") void refresh(); });
+      return () => { void supabase.removeChannel(channel); };
+    } catch {
+      return;
+    }
+  }, [refresh]);
+
+  useEffect(() => {
+    const update = () => setTime(new Intl.DateTimeFormat("th-TH", { timeZone: "Asia/Bangkok", hour: "2-digit", minute: "2-digit", hourCycle: "h23", numberingSystem: "latn" }).format(new Date()));
+    update();
+    const timer = window.setInterval(update, 15_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!answer.trim() || answerLength > 80 || sending) return;
+    setSending(true);
+    setNotice("");
+    try {
+      const response = await fetch("/api/answers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: answer }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error ?? "ส่งคำตอบไม่สำเร็จ");
+      setAnswer("");
+      setNotice("รับคำของคุณแล้ว ขอบคุณที่แบ่งปันนะ");
+      await refresh();
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "ส่งคำตอบไม่สำเร็จ");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <main className="cloud-shell">
+      <header className="cloud-topline">
+        <a className="brand" href="/" aria-label="ห้องอ่านหนังสือ">
+          <span className="brand-mark">ร</span>
+          <span><strong>ห้องอ่านหนังสือ</strong><small>READING ROOM · WORD CLOUD</small></span>
+        </a>
+        <span className="live-pill"><i /> LIVE BOARD</span>
+      </header>
+
+      <section className="cloud-heading">
+        <div className="eyebrow">วันนี้อยากแบ่งปันอะไร</div>
+        <h1>{data.board?.question ?? "กำลังเตรียมคำถาม…"}</h1>
+        <p>ส่งคำหรือวลีสั้น ๆ ที่อยากฝากไว้ แล้วมาดูความคิดของทุกคนรวมกัน</p>
+      </section>
+
+      <section className="cloud-stage" aria-label="Word cloud">
+        <div className="stage-label"><span>คลังความคิดของเรา</span><span>{data.words.reduce((sum, word) => sum + word.count, 0)} คำตอบ</span></div>
+        <WordCloud words={data.words} />
+        <div className="stage-decoration decoration-a">✳</div><div className="stage-decoration decoration-b">✳</div>
+      </section>
+
+      <form className="answer-form" onSubmit={submit}>
+        <label htmlFor="answer-input">คำของคุณ</label>
+        <div className="answer-input-row">
+          <input
+            id="answer-input"
+            value={answer}
+            onChange={(event) => setAnswer(event.target.value)}
+            placeholder="เช่น ความสงบ, แรงบันดาลใจ…"
+          maxLength={1024}
+            autoComplete="off"
+            disabled={!data.board || sending}
+          />
+          <button type="submit" disabled={!data.board || sending || !answer.trim() || answerLength > 80}>{sending ? "กำลังส่ง…" : "ส่งคำตอบ"}<span>↗</span></button>
+        </div>
+        <div className="form-foot"><span>ไม่ต้องระบุชื่อ · {answerLength}/80 ตัวอักษร</span><span className="notice" aria-live="polite">{answerLength > 80 ? "คำตอบยาวเกิน 80 ตัวอักษร" : notice}</span></div>
+      </form>
+
+      <footer className="cloud-footer">
+        <span>ทุกคำมีความหมาย <b>·</b> ทุกคนมีพื้นที่</span>
+        <span className="footer-meta">WORD CLOUD <i /> READING ROOM</span>
+      </footer>
+      <aside className="duty-clock" aria-label="เวรดูแลและเวลา">
+        <span className="duty-icon">✦</span><span><small>เวรดูแลวันนี้</small><strong>{data.board?.duty_name || "ยังไม่ระบุ"}</strong></span>
+        <i className="clock-divider" /><time>{time || "--:--"}</time>
+      </aside>
+    </main>
+  );
+}
