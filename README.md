@@ -11,14 +11,14 @@
 
 สร้าง secret ได้ด้วย `node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"` แล้วนำผลลัพธ์ไปใส่ใน `ADMIN_SESSION_SECRET` แยกจากรหัสผ่านผู้ดูแล
 
-## Deploy บน Netlify
+## Deploy บน Vercel
 
-- เชื่อม repository นี้กับ Netlify; `netlify.toml` ตั้งค่า Next.js adapter ให้แล้ว
-- เพิ่ม environment variables จาก `.env.example` ใน Site configuration ก่อน deploy
-- ใช้ URL ของ Supabase และ key จากโปรเจกต์ที่เลือก region Singapore; QR ใช้ domain ที่เปิดหน้า Admin อยู่โดยอัตโนมัติ
+- เพิ่ม environment variables ทั้ง 5 รายการจาก `.env.example` ใน Vercel Project Settings → Environment Variables โดยกำหนดให้ Production ใช้งานได้
+- เชื่อม GitHub repository กับ Vercel หรือ deploy จากโฟลเดอร์นี้ด้วย `npx vercel` แล้วใช้ `npx vercel --prod` สำหรับ Production
+- ใช้ URL และ key จาก Supabase โปรเจกต์ที่เลือก region Singapore; QR ใช้ domain ที่เปิดหน้า Admin อยู่โดยอัตโนมัติ
 - ใช้ `SUPABASE_SERVICE_ROLE_KEY` เฉพาะฝั่ง server; ห้ามเปลี่ยนชื่อให้ขึ้นต้นด้วย `NEXT_PUBLIC_`
 
-Netlify และ Supabase แผนฟรีมีโควตาและข้อจำกัดการพักโปรเจกต์ตามผู้ให้บริการ Supabase Free ไม่มี automatic backups; ควรดาวน์โหลด CSV ในหน้า Archive มาเก็บไว้เป็นระยะ
+Supabase Free มีโควตาและอาจพักโปรเจกต์เมื่อไม่มีการใช้งานตามเงื่อนไขของผู้ให้บริการ อีกทั้งไม่มี automatic backups; ควรดาวน์โหลด CSV ในหน้า Archive มาเก็บไว้เป็นระยะ
 
 ## ขอบเขตข้อมูลและการป้องกัน
 
