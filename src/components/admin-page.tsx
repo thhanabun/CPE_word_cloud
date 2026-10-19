@@ -26,6 +26,7 @@ export default function AdminPage() {
   const [archives, setArchives] = useState<Archive[]>([]);
   const [question, setQuestion] = useState("");
   const [duty, setDuty] = useState("");
+  const [announcement, setAnnouncement] = useState("");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
@@ -44,6 +45,7 @@ export default function AdminPage() {
     setData(boardData);
     setQuestion(boardData.board?.question ?? "");
     setDuty(boardData.board?.duty_name ?? "");
+    setAnnouncement(boardData.board?.announcement ?? "");
     setArchives(archiveData.archives ?? []);
     setLoggedIn(true);
   }, []);
@@ -71,6 +73,16 @@ export default function AdminPage() {
       setMessage("บันทึกการเปลี่ยนแปลงแล้ว");
       await loadData();
     } catch (saveError) { setError(saveError instanceof Error ? saveError.message : "บันทึกไม่สำเร็จ"); }
+    finally { setBusy(false); }
+  }
+
+  async function saveAnnouncement(text: string) {
+    setBusy(true); setError(""); setMessage("");
+    try {
+      await readResponse(await fetch("/api/admin/announcement", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ announcement: text }) }));
+      setMessage(text.trim() ? "ประกาศขึ้นหน้า Cloud แล้ว" : "ลบประกาศแล้ว");
+      await loadData();
+    } catch (saveError) { setError(saveError instanceof Error ? saveError.message : "บันทึกประกาศไม่สำเร็จ"); }
     finally { setBusy(false); }
   }
 
@@ -161,8 +173,21 @@ export default function AdminPage() {
         </section>
       </div>
 
+      <section className="admin-panel announcement-panel">
+        <div className="panel-heading"><div><span className="panel-number">03</span><div><h2>ประกาศ</h2><p>แสดงเป็นป๊อปอัปใหญ่บนหน้า Cloud · มีได้ทีละหนึ่งประกาศ</p></div></div>{data?.board?.announcement && <span className="panel-status">กำลังแสดง</span>}</div>
+        <form className="settings-form" onSubmit={(event) => { event.preventDefault(); void saveAnnouncement(announcement); }}>
+          <label htmlFor="announcement-text">ข้อความประกาศ</label>
+          <textarea id="announcement-text" value={announcement} onChange={(event) => setAnnouncement(event.target.value)} maxLength={500} rows={3} placeholder="เช่น ห้องจะปิดเวลา 20:00 น." />
+          <div className="field-hint">ไม่เกิน 500 ตัวอักษร · ประกาศใหม่จะแทนที่ประกาศเดิม</div>
+          <div className="announcement-actions">
+            <button className="primary-button" disabled={busy || !announcement.trim()}>{data?.board?.announcement ? "อัปเดตประกาศ" : "ประกาศ"} <span>↗</span></button>
+            {data?.board?.announcement && <button type="button" className="danger-button" onClick={() => void saveAnnouncement("")} disabled={busy}>ลบประกาศ</button>}
+          </div>
+        </form>
+      </section>
+
       <section className="admin-panel responses-panel">
-        <div className="panel-heading"><div><span className="panel-number">03</span><div><h2>คำบนบอร์ด</h2><p>ลบคำหรือวลีที่ไม่เหมาะสมออกจากบอร์ดปัจจุบัน</p></div></div><span className="response-total">{data?.words.reduce((sum, word) => sum + word.count, 0) ?? 0} คำตอบ</span></div>
+        <div className="panel-heading"><div><span className="panel-number">04</span><div><h2>คำบนบอร์ด</h2><p>ลบคำหรือวลีที่ไม่เหมาะสมออกจากบอร์ดปัจจุบัน</p></div></div><span className="response-total">{data?.words.reduce((sum, word) => sum + word.count, 0) ?? 0} คำตอบ</span></div>
         {!data?.words.length ? <div className="admin-empty">ยังไม่มีคำตอบในบอร์ดนี้</div> : (
           <div className="word-table"><div className="word-table-head"><span>คำหรือวลี</span><span>จำนวน</span><span>จัดการ</span></div>
             {data.words.map((word) => <div className="word-row" key={word.id}><span>{word.display_text}</span><strong>{word.count}</strong><button className="remove-button" onClick={() => void removeWord(word.id, word.display_text)} aria-label={`ลบ ${word.display_text}`}>ลบ</button></div>)}
@@ -171,7 +196,7 @@ export default function AdminPage() {
       </section>
 
       <section className="admin-panel archive-panel">
-        <div className="panel-heading"><div><span className="panel-number">04</span><div><h2>Archive</h2><p>บอร์ดเก่าพร้อมยอดคำรวม ดาวน์โหลดเป็น CSV ได้</p></div></div><span className="archive-count">{archives.length} บอร์ด</span></div>
+        <div className="panel-heading"><div><span className="panel-number">05</span><div><h2>Archive</h2><p>บอร์ดเก่าพร้อมยอดคำรวม ดาวน์โหลดเป็น CSV ได้</p></div></div><span className="archive-count">{archives.length} บอร์ด</span></div>
         {!archives.length ? <div className="admin-empty">ยังไม่มี Archive · เมื่อ Reset บอร์ดเก่าจะปรากฏที่นี่</div> : (
           <div className="archive-list">{archives.map((archive) => <details className="archive-item" key={archive.id}>
             <summary><span className="archive-date">{date(archive.archived_at)}</span><strong>{archive.question}</strong><span className="archive-words">{archive.words.reduce((sum, word) => sum + word.count, 0)} คำตอบ</span></summary>

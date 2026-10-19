@@ -10,6 +10,10 @@ create table if not exists public.boards (
   is_active boolean not null default true
 );
 
+-- Single announcement shown as a popup on the cloud screen; null = none.
+alter table public.boards add column if not exists announcement text
+  check (char_length(announcement) between 1 and 500);
+
 create unique index if not exists boards_one_active_idx
   on public.boards (is_active) where is_active = true;
 

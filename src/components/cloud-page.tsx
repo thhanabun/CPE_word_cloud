@@ -19,6 +19,8 @@ export default function CloudPage() {
   const [sending, setSending] = useState(false);
   const [time, setTime] = useState("");
   const [cloudUrl, setCloudUrl] = useState("");
+  const [dismissed, setDismissed] = useState<string | null>(null);
+  const announcement = data.board?.announcement;
   const answerLength = [...graphemes.segment(answer)].length;
 
   const refresh = useCallback(async () => {
@@ -109,6 +111,16 @@ export default function CloudPage() {
         <span className="duty-icon">✦</span><span><small>เวรดูแลวันนี้</small><strong>{data.board?.duty_name || "ยังไม่ระบุ"}</strong></span>
         <i className="clock-divider" /><time>{time || "--:--"}</time>
       </aside>
+
+      {announcement && announcement !== dismissed && (
+        <div className="announcement-backdrop" onClick={() => setDismissed(announcement)}>
+          <section className="announcement-card" role="dialog" aria-modal="true" aria-labelledby="announcement-title" onClick={(event) => event.stopPropagation()}>
+            <div className="eyebrow" id="announcement-title">ประกาศ</div>
+            <p>{announcement}</p>
+            <button className="primary-button" onClick={() => setDismissed(announcement)} autoFocus>รับทราบ</button>
+          </section>
+        </div>
+      )}
     </main>
   );
 }

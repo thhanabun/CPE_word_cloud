@@ -2,6 +2,7 @@ export type Board = {
   id: string;
   question: string;
   duty_name: string;
+  announcement: string | null;
   created_at: string;
   archived_at: string | null;
   is_active: boolean;
