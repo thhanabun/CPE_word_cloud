@@ -6,13 +6,14 @@ import dynamic from "next/dynamic";
 import { QRCodeSVG } from "qrcode.react";
 import { getPublicSupabase } from "@/lib/supabase";
 import type { BoardPayload } from "@/lib/types";
+import { PairSpeaker, SpotifySpeaker } from "./speaker";
 
 const WordCloud = dynamic(() => import("./word-cloud"), { ssr: false });
 
 const empty: BoardPayload = { board: null, words: [] };
 const graphemes = new Intl.Segmenter("th", { granularity: "grapheme" });
 
-export default function CloudPage() {
+export default function CloudPage({ isScreen }: { isScreen: boolean }) {
   const [data, setData] = useState(empty);
   const [answer, setAnswer] = useState("");
   const [notice, setNotice] = useState("");
@@ -111,6 +112,8 @@ export default function CloudPage() {
         <span className="duty-icon">✦</span><span><small>เวรดูแลวันนี้</small><strong>{data.board?.duty_name || "ยังไม่ระบุ"}</strong></span>
         <i className="clock-divider" /><time>{time || "--:--"}</time>
       </aside>
+
+      {isScreen ? <SpotifySpeaker /> : <PairSpeaker />}
 
       {announcement && announcement !== dismissed && (
         <div className="announcement-backdrop" onClick={() => setDismissed(announcement)}>
