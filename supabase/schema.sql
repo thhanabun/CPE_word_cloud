@@ -43,6 +43,22 @@ create policy "public can read words on active board" on public.words
 grant select on public.boards, public.words to anon, authenticated;
 revoke insert, update, delete on public.boards, public.words from anon, authenticated;
 
+-- Single row for the screen speaker: the admin's Spotify tokens plus one pending
+-- screen pairing. Only the service role touches it; no RLS policies on purpose.
+create table if not exists public.speaker (
+  id boolean primary key default true check (id),
+  refresh_token text,
+  access_token text,
+  access_expires_at timestamptz,
+  display_name text,
+  pair_code text,
+  pair_approved boolean not null default false,
+  pair_created_at timestamptz
+);
+
+alter table public.speaker enable row level security;
+revoke all on public.speaker from anon, authenticated;
+
 create or replace function public.submit_word(p_text text, p_normalized text)
 returns void
 language plpgsql

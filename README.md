@@ -11,6 +11,18 @@
 
 สร้าง secret ได้ด้วย `node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"` แล้วนำผลลัพธ์ไปใส่ใน `ADMIN_SESSION_SECRET` แยกจากรหัสผ่านผู้ดูแล
 
+## ลำโพง Spotify
+
+หน้าจอ Cloud เป็นลำโพง Spotify Connect ชื่อ “Word Cloud” ได้ โดยไม่ต้องล็อกอิน Spotify บนหน้าจอ (ต้องใช้ Spotify Premium)
+
+1. สร้างแอปที่ developer.spotify.com เลือก Web API และ Web Playback SDK แล้วนำ Client ID ไปใส่ใน `SPOTIFY_CLIENT_ID`
+2. เพิ่ม Redirect URI `https://<โดเมน>/api/admin/spotify/callback` และ `http://127.0.0.1:3000/api/admin/spotify/callback` สำหรับเครื่อง dev (Spotify ไม่รับ `localhost` จึงต้องเปิด dev ผ่าน `127.0.0.1`)
+3. บนมือถือ: `/admin` → ลำโพง Spotify → เชื่อม Spotify
+4. บนหน้าจอ: กด “เชื่อมลำโพง” มุมซ้ายล่าง แล้วสแกน QR ด้วยมือถือที่เข้า `/admin` อยู่และกดอนุญาต จากนั้นคลิกหน้าจอหนึ่งครั้งเพื่อให้เบราว์เซอร์ยอมเล่นเสียง
+5. เลือก “Word Cloud” ในรายการอุปกรณ์ของแอป Spotify
+
+Refresh token เก็บในตาราง `speaker` ฝั่ง server เท่านั้น หน้าจอได้รับเฉพาะ access token อายุ 1 ชั่วโมงผ่าน cookie ที่จับคู่ไว้ (อายุ 1 ปี) และกด “ยกเลิกการเชื่อม” ที่หน้า Admin ได้ตลอด
+
 ## Deploy บน Vercel
 
 - เพิ่ม environment variables ทั้ง 6 รายการจาก `.env.example` ใน Vercel Project Settings → Environment Variables โดยกำหนดให้ Production ใช้งานได้

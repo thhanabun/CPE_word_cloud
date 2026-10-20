@@ -32,6 +32,8 @@ export default function AdminPage() {
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
   const [cloudUrl, setCloudUrl] = useState("");
+  const [spotify, setSpotify] = useState<{ connected: boolean; name: string | null } | null>(null);
+  const [pairCode, setPairCode] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
     const boardResponse = await fetch("/api/admin/board", { cache: "no-store" });
@@ -42,6 +44,7 @@ export default function AdminPage() {
     }
     const boardData: AdminData = await readResponse(boardResponse);
     const archiveData = await readResponse(await fetch("/api/admin/archives", { cache: "no-store" }));
+    setSpotify(await fetch("/api/admin/spotify", { cache: "no-store" }).then(readResponse).catch(() => null));
     setData(boardData);
     setQuestion(boardData.board?.question ?? "");
     setDuty(boardData.board?.duty_name ?? "");
@@ -52,6 +55,13 @@ export default function AdminPage() {
 
   useEffect(() => {
     setCloudUrl(`${window.location.origin}/`);
+    const params = new URLSearchParams(window.location.search);
+    setPairCode(params.get("pair"));
+    const spotifyResult = params.get("spotify");
+    if (spotifyResult === "connected") setMessage("เชื่อม Spotify แล้ว");
+    if (spotifyResult === "premium") setError("บัญชีนี้ไม่ใช่ Spotify Premium จึงใช้เป็นลำโพงไม่ได้");
+    if (spotifyResult === "error") setError("เชื่อม Spotify ไม่สำเร็จ กรุณาลองใหม่");
+    if (spotifyResult) window.history.replaceState(null, "", "/admin");
     void loadData().catch((loadError) => setError(loadError.message)).finally(() => setReady(true));
   }, [loadData]);
 
@@ -106,6 +116,28 @@ export default function AdminPage() {
     finally { setBusy(false); }
   }
 
+  async function approvePair() {
+    setBusy(true); setError(""); setMessage("");
+    try {
+      await readResponse(await fetch("/api/admin/screen-pair", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code: pairCode }) }));
+      setMessage("เชื่อมหน้าจอเป็นลำโพงแล้ว");
+      setPairCode(null);
+      window.history.replaceState(null, "", "/admin");
+    } catch (pairError) { setError(pairError instanceof Error ? pairError.message : "เชื่อมหน้าจอไม่สำเร็จ"); }
+    finally { setBusy(false); }
+  }
+
+  async function disconnectSpotify() {
+    if (!window.confirm("ยกเลิกการเชื่อม Spotify หรือไม่? หน้าจอจะหยุดเป็นลำโพงจนกว่าจะเชื่อมใหม่")) return;
+    setBusy(true); setError(""); setMessage("");
+    try {
+      await readResponse(await fetch("/api/admin/spotify", { method: "DELETE" }));
+      setMessage("ยกเลิกการเชื่อม Spotify แล้ว");
+      await loadData();
+    } catch (disconnectError) { setError(disconnectError instanceof Error ? disconnectError.message : "ยกเลิกไม่สำเร็จ"); }
+    finally { setBusy(false); }
+  }
+
   async function logout() {
     await fetch("/api/admin/logout", { method: "POST" });
     setLoggedIn(false); setData(null);
@@ -148,6 +180,7 @@ export default function AdminPage() {
       </section>
       {error && <div className="admin-alert" role="alert">{error}</div>}
       {message && <div className="admin-success" role="status">{message}</div>}
+      {pairCode && <div className="admin-success speaker-request" role="status"><span>หน้าจอขอเชื่อมเป็นลำโพง Spotify · อนุญาตเฉพาะเมื่อเพิ่งกด “เชื่อมลำโพง” ที่หน้าจอเอง</span><button className="primary-button" onClick={() => void approvePair()} disabled={busy}>อนุญาต</button></div>}
 
       <div className="admin-grid">
         <section className="admin-panel board-settings">
@@ -186,8 +219,18 @@ export default function AdminPage() {
         </form>
       </section>
 
+      <section className="admin-panel speaker-panel">
+        <div className="panel-heading"><div><span className="panel-number">04</span><div><h2>ลำโพง Spotify</h2><p>หน้าจอเล่นเพลงจาก Spotify ของคุณ · เลือก “Word Cloud” ในแอป Spotify บนมือถือ</p></div></div>{spotify?.connected && <span className="panel-status">เชื่อมแล้ว</span>}</div>
+        <div className="speaker-actions">
+          <p>{spotify?.connected ? `บัญชี ${spotify.name ?? "Spotify"} · กด “เชื่อมลำโพง” มุมซ้ายล่างของหน้าจอ แล้วสแกน QR` : "ต้องใช้ Spotify Premium · เข้าสู่ระบบบนมือถือเครื่องนี้ ไม่ต้องพิมพ์รหัสบนหน้าจอ"}</p>
+          {spotify?.connected
+            ? <button className="danger-button" onClick={() => void disconnectSpotify()} disabled={busy}>ยกเลิกการเชื่อม</button>
+            : <a className="primary-button" href="/api/admin/spotify/login">เชื่อม Spotify <span>↗</span></a>}
+        </div>
+      </section>
+
       <section className="admin-panel responses-panel">
-        <div className="panel-heading"><div><span className="panel-number">04</span><div><h2>คำบนบอร์ด</h2><p>ลบคำหรือวลีที่ไม่เหมาะสมออกจากบอร์ดปัจจุบัน</p></div></div><span className="response-total">{data?.words.reduce((sum, word) => sum + word.count, 0) ?? 0} คำตอบ</span></div>
+        <div className="panel-heading"><div><span className="panel-number">05</span><div><h2>คำบนบอร์ด</h2><p>ลบคำหรือวลีที่ไม่เหมาะสมออกจากบอร์ดปัจจุบัน</p></div></div><span className="response-total">{data?.words.reduce((sum, word) => sum + word.count, 0) ?? 0} คำตอบ</span></div>
         {!data?.words.length ? <div className="admin-empty">ยังไม่มีคำตอบในบอร์ดนี้</div> : (
           <div className="word-table"><div className="word-table-head"><span>คำหรือวลี</span><span>จำนวน</span><span>จัดการ</span></div>
             {data.words.map((word) => <div className="word-row" key={word.id}><span>{word.display_text}</span><strong>{word.count}</strong><button className="remove-button" onClick={() => void removeWord(word.id, word.display_text)} aria-label={`ลบ ${word.display_text}`}>ลบ</button></div>)}
@@ -196,7 +239,7 @@ export default function AdminPage() {
       </section>
 
       <section className="admin-panel archive-panel">
-        <div className="panel-heading"><div><span className="panel-number">05</span><div><h2>Archive</h2><p>บอร์ดเก่าพร้อมยอดคำรวม ดาวน์โหลดเป็น CSV ได้</p></div></div><span className="archive-count">{archives.length} บอร์ด</span></div>
+        <div className="panel-heading"><div><span className="panel-number">06</span><div><h2>Archive</h2><p>บอร์ดเก่าพร้อมยอดคำรวม ดาวน์โหลดเป็น CSV ได้</p></div></div><span className="archive-count">{archives.length} บอร์ด</span></div>
         {!archives.length ? <div className="admin-empty">ยังไม่มี Archive · เมื่อ Reset บอร์ดเก่าจะปรากฏที่นี่</div> : (
           <div className="archive-list">{archives.map((archive) => <details className="archive-item" key={archive.id}>
             <summary><span className="archive-date">{date(archive.archived_at)}</span><strong>{archive.question}</strong><span className="archive-words">{archive.words.reduce((sum, word) => sum + word.count, 0)} คำตอบ</span></summary>
