@@ -3,7 +3,15 @@
 import { useEffect, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 
+type PlaybackState = {
+  paused: boolean;
+  position: number;
+  duration: number;
+  track_window: { current_track: { name: string; artists: { name: string }[] } };
+};
+
 type SpotifyPlayer = {
+  addListener(event: "player_state_changed", callback: (state: PlaybackState | null) => void): void;
   addListener(event: string, callback: () => void): void;
   connect(): Promise<boolean>;
   disconnect(): void;
@@ -17,6 +25,13 @@ declare global {
   }
 }
 
+type Track = { name: string; artists: string; position: number; duration: number; paused: boolean; at: number };
+
+function clock(ms: number) {
+  const seconds = Math.floor(ms / 1000);
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+}
+
 async function fetchToken() {
   const response = await fetch("/api/screen/spotify-token", { cache: "no-store" });
   const value = await response.json().catch(() => ({}));
@@ -28,6 +43,8 @@ async function fetchToken() {
 export function SpotifySpeaker() {
   const [status, setStatus] = useState("กำลังเชื่อม Spotify…");
   const [needsClick, setNeedsClick] = useState(true);
+  const [track, setTrack] = useState<Track | null>(null);
+  const [now, setNow] = useState(0);
 
   useEffect(() => {
     let player: SpotifyPlayer | undefined;
@@ -58,6 +75,15 @@ export function SpotifySpeaker() {
           getOAuthToken: (callback) => { fetchToken().then(callback, (error: Error) => setStatus(error.message)); },
         });
         player.addListener("ready", () => setStatus("พร้อม · เลือก “Word Cloud” ในแอป Spotify"));
+        // The SDK only reports changes, so the position is extrapolated from the last report.
+        player.addListener("player_state_changed", (state) => setTrack(state && {
+          name: state.track_window.current_track.name,
+          artists: state.track_window.current_track.artists.map((artist) => artist.name).join(", "),
+          position: state.position,
+          duration: state.duration,
+          paused: state.paused,
+          at: Date.now(),
+        }));
         player.addListener("not_ready", () => setStatus("ลำโพงหลุด กำลังเชื่อมใหม่…"));
         player.addListener("initialization_error", () => setStatus("เบราว์เซอร์นี้เล่น Spotify ไม่ได้"));
         player.addListener("authentication_error", () => setStatus("สิทธิ์ Spotify หมดอายุ · เชื่อมใหม่ที่หน้า Admin"));
@@ -83,7 +109,27 @@ export function SpotifySpeaker() {
     };
   }, []);
 
-  return <div className="speaker-badge" role="status"><span>♫</span>{status}{needsClick && " · คลิกหน้าจอหนึ่งครั้งเพื่อเปิดเสียง"}</div>;
+  useEffect(() => {
+    if (!track || track.paused) return;
+    setNow(Date.now());
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [track]);
+
+  const clickHint = needsClick ? " · คลิกหน้าจอหนึ่งครั้งเพื่อเปิดเสียง" : "";
+  if (!track) return <div className="speaker-badge" role="status"><span>♫</span>{status}{clickHint}</div>;
+
+  const position = Math.min(track.duration, track.position + (track.paused ? 0 : Math.max(0, now - track.at)));
+  return (
+    <div className="speaker-badge speaker-playing" role="status">
+      <span>{track.paused ? "⏸" : "♫"}</span>
+      <div className="speaker-track">
+        <strong>{track.name}</strong>
+        <small>{track.artists} · {clock(position)} / {clock(track.duration)}{clickHint}</small>
+        <b className="speaker-progress"><i style={{ width: `${track.duration ? (position / track.duration) * 100 : 0}%` }} /></b>
+      </div>
+    </div>
+  );
 }
 
 // Shown on unpaired screens: the admin scans the QR on their phone and approves.
