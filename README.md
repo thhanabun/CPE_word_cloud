@@ -13,7 +13,7 @@
 
 ## Deploy บน Vercel
 
-- เพิ่ม environment variables ทั้ง 5 รายการจาก `.env.example` ใน Vercel Project Settings → Environment Variables โดยกำหนดให้ Production ใช้งานได้
+- เพิ่ม environment variables ทั้ง 6 รายการจาก `.env.example` ใน Vercel Project Settings → Environment Variables โดยกำหนดให้ Production ใช้งานได้
 - เชื่อม GitHub repository กับ Vercel หรือ deploy จากโฟลเดอร์นี้ด้วย `npx vercel` แล้วใช้ `npx vercel --prod` สำหรับ Production
 - ใช้ URL และ key จาก Supabase โปรเจกต์ที่เลือก region Singapore; QR ใช้ domain ที่เปิดหน้า Admin อยู่โดยอัตโนมัติ
 - ใช้ `SUPABASE_SERVICE_ROLE_KEY` เฉพาะฝั่ง server; ห้ามเปลี่ยนชื่อให้ขึ้นต้นด้วย `NEXT_PUBLIC_`
