@@ -25,12 +25,22 @@ Refresh token เก็บในตาราง `speaker` ฝั่ง server �
 
 ## Deploy บน Vercel
 
-- เพิ่ม environment variables ทั้ง 6 รายการจาก `.env.example` ใน Vercel Project Settings → Environment Variables โดยกำหนดให้ Production ใช้งานได้
+- เพิ่ม environment variables ทั้ง 7 รายการจาก `.env.example` ใน Vercel Project Settings → Environment Variables โดยกำหนดให้ Production ใช้งานได้
 - เชื่อม GitHub repository กับ Vercel หรือ deploy จากโฟลเดอร์นี้ด้วย `npx vercel` แล้วใช้ `npx vercel --prod` สำหรับ Production
 - ใช้ URL และ key จาก Supabase โปรเจกต์ที่เลือก region Singapore; QR ใช้ domain ที่เปิดหน้า Admin อยู่โดยอัตโนมัติ
 - ใช้ `SUPABASE_SERVICE_ROLE_KEY` เฉพาะฝั่ง server; ห้ามเปลี่ยนชื่อให้ขึ้นต้นด้วย `NEXT_PUBLIC_`
 
 Supabase Free มีโควตาและอาจพักโปรเจกต์เมื่อไม่มีการใช้งานตามเงื่อนไขของผู้ให้บริการ อีกทั้งไม่มี automatic backups; ควรดาวน์โหลด CSV ในหน้า Archive มาเก็บไว้เป็นระยะ
+
+## Keep Supabase Free active
+
+GitHub Actions จะเรียก API วันละ 3 ครั้ง (ช่วงห่างสูงสุด 10 ชั่วโมง) โดย API ใช้ secret ตรวจสอบคำขอ แล้วเรียกฟังก์ชันที่ insert/delete แถวชั่วคราวใน Supabase transaction เดียว
+
+1. รัน [`supabase/keepalive.sql`](supabase/keepalive.sql) หนึ่งครั้งใน Supabase SQL Editor
+2. ตั้ง `HEARTBEAT_SECRET` ใน Vercel Production และ redeploy
+3. ใน GitHub repository ไปที่ **Settings → Secrets and variables → Actions** แล้วเพิ่ม repository variable `HEARTBEAT_URL` เป็น URL Production ที่ลงท้ายด้วย `/api/heartbeat` และเพิ่ม repository secret `HEARTBEAT_SECRET` ให้ตรงกับค่าใน Vercel
+
+สร้าง `HEARTBEAT_SECRET` ค่าใหม่ที่แยกจาก `ADMIN_SESSION_SECRET` ด้วยคำสั่งเดียวกันด้านบน Supabase ระบุว่าโปรเจกต์ Free อาจพักเมื่อมีกิจกรรมน้อยใน 7 วัน และแนะนำให้มีคำขอผ่าน API/แอปจริง แต่การพักยังขึ้นกับเกณฑ์ของ Supabase; GitHub schedule อาจล่าช้าหรือหยุดหาก repository สาธารณะไม่มี activity 60 วัน
 
 ## ขอบเขตข้อมูลและการป้องกัน
 

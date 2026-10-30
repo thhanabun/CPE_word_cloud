@@ -1,0 +1,26 @@
+name: Supabase keepalive
+
+# shortcut: GitHub may delay runs and disables public-repo schedules after 60 inactive days; use paid hosting for guaranteed uptime.
+on:
+  schedule:
+    - cron: "17 */10 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  heartbeat:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Call the production heartbeat endpoint
+        env:
+          HEARTBEAT_URL: ${{ vars.HEARTBEAT_URL }}
+          HEARTBEAT_SECRET: ${{ secrets.HEARTBEAT_SECRET }}
+        run: |
+          test -n "$HEARTBEAT_URL"
+          test -n "$HEARTBEAT_SECRET"
+          curl --fail --silent --show-error --max-time 30 \
+            --request POST "$HEARTBEAT_URL" \
+            --header "Authorization: Bearer $HEARTBEAT_SECRET"
